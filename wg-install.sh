@@ -411,6 +411,42 @@ function listClients() {
 	grep -E "^### Client" "/etc/wireguard/${SERVER_WG_NIC}.conf" | cut -d ' ' -f 3 | nl -s ') '
 }
 
+function listQR() {
+	NUMBER_OF_CLIENTS=$(grep -c -E "^### Client" "/etc/wireguard/${SERVER_WG_NIC}.conf")
+	if [[ ${NUMBER_OF_CLIENTS} == '0' ]]; then
+		echo ""
+		echo "You have no existing clients!"
+		exit 1
+	fi
+
+	echo ""
+	echo "Select the existing client you want to view the QR code for"
+	grep -E "^### Client" "/etc/wireguard/${SERVER_WG_NIC}.conf" | cut -d ' ' -f 3 | nl -s ') '
+	
+	until [[ ${CLIENT_NUMBER} -ge 1 && ${CLIENT_NUMBER} -le ${NUMBER_OF_CLIENTS} ]]; do
+		if [[ ${CLIENT_NUMBER} == '1' ]]; then
+			read -rp "Select one client [1]: " CLIENT_NUMBER
+		else
+			read -rp "Select one client [1-${NUMBER_OF_CLIENTS}]: " CLIENT_NUMBER
+		fi
+	done
+
+	# Получаем имя клиента по номеру
+	CLIENT_NAME=$(grep -E "^### Client" "/etc/wireguard/${SERVER_WG_NIC}.conf" | cut -d ' ' -f 3 | sed -n "${CLIENT_NUMBER}"p)
+	
+	# Определяем путь к домашней директории, где лежит конфиг
+	HOME_DIR=$(getHomeDirForClient "${CLIENT_NAME}")
+	CONF_FILE="${HOME_DIR}/${CLIENT_NAME}.conf"
+
+	if [[ -f "${CONF_FILE}" ]]; then
+		echo -e "${GREEN}\nHere is the QR Code for client: ${CLIENT_NAME}\n${NC}"
+		qrencode -t ansiutf8 -l L < "${CONF_FILE}"
+		echo ""
+	else
+		echo -e "${RED}\nError: Configuration file not found at ${CONF_FILE}${NC}"
+	fi
+}
+
 function revokeClient() {
 	NUMBER_OF_CLIENTS=$(grep -c -E "^### Client" "/etc/wireguard/${SERVER_WG_NIC}.conf")
 	if [[ ${NUMBER_OF_CLIENTS} == '0' ]]; then
@@ -522,9 +558,10 @@ function manageMenu() {
 	echo "What do you want to do?"
 	echo "   1) Add a new user"
 	echo "   2) List all users"
-	echo "   3) Revoke existing user"
-	echo "   4) Uninstall WireGuard"
-	echo "   5) Exit"
+	echo "   3) List users QR"
+	echo "   4) Revoke existing user"
+	echo "   5) Uninstall WireGuard"
+	echo "   6) Exit"
 	until [[ ${MENU_OPTION} =~ ^[1-5]$ ]]; do
 		read -rp "Select an option [1-5]: " MENU_OPTION
 	done
@@ -536,12 +573,15 @@ function manageMenu() {
 		listClients
 		;;
 	3)
-		revokeClient
+		listQR
 		;;
 	4)
-		uninstallWg
+		revokeClient
 		;;
 	5)
+		uninstallWg
+		;;
+	6)
 		exit 0
 		;;
 	esac
