@@ -272,6 +272,11 @@ PostDown = iptables -t nat -D POSTROUTING -o ${SERVER_PUB_NIC} -j MASQUERADE" >>
 	# Enable routing on the server
 	echo "net.ipv4.ip_forward = 1" >/etc/sysctl.d/wg.conf
 
+	if [[ ${OS} == 'fedora' ]]; then
+		chmod -v 700 /etc/wireguard
+		chmod -v 600 /etc/wireguard/*
+	fi
+
 	if [[ ${OS} == 'alpine' ]]; then
 		sysctl -p /etc/sysctl.d/wg.conf
 		rc-update add sysctl
